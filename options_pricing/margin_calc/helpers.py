@@ -1,6 +1,6 @@
 from position import Position
+from sklearn import linear_model 
 import numpy as np
-
 
 '''
 Put-Call parity calculation. Two options with the same expiry and strike
@@ -22,5 +22,17 @@ def put_call_parity(put: Position = None, call: Position = None) -> float:
     r = -np.log((put.markPx-call.markPx+spot)/(strike))/(expiry/365)
     return r/100
 
-if __name__ == '__main__':
-    print('')
+def linear_approximation(ivs: [int], tte: [int], range: [int]) -> [float]:
+    assert len(ivs) == len(tte), "Length not equal!"
+    # basic case for len(ivs) = len(tte) = 3
+    lm = linear_model.LinearRegression()
+    x = ivs
+    y = tte
+    return lm.predict(x)
+
+def main():
+    linear_approximation([50,35,25], [0, 30, 90], [1,2,3])
+
+if __name__ == "__main__":
+    main()
+
