@@ -9,6 +9,7 @@ class Position:
         self.notionalUsd = float(d['notionalUsd'])
         self.optVal = float(d['optVal'])
         self.pos = float(d['pos'])
+        self.iv = float(d['iv'])
         self.idxPx = float(d['idxPx'])
         self.delta = float(d['deltaBS'])
         self.gamma = float(d['gammaBS'])
@@ -25,7 +26,7 @@ class Position:
         try:
             exp_date = datetime.strptime(d[2], "%y%m%d")
             # dummy date for now
-            dummy = datetime(2023,11,5)
+            dummy = datetime.now()
             delta = exp_date-dummy
             self.expiration_days = delta.days
         except ValueError:
@@ -36,5 +37,4 @@ class Position:
     
 
 if __name__ == '__main__':
-    d = '231110'
-    print(datetime.strptime(d, "%y%m%d"))
+    print('main')
