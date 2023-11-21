@@ -1,6 +1,9 @@
 from position import Position
+from datetime import datetime
 import statsmodels.api as sm
 import numpy as np
+import json
+
 
 '''
 Put-Call parity calculation. Two options with the same expiry and strike
@@ -32,6 +35,20 @@ def linear_approximation(ivs: [int], tte: [int], range: [int]) -> [float]:
     lm = sm.OLS(y,x).fit()
     predict = lm.predict(range)
     return predict
+
+def get_calls(n=5) -> None:
+    calls = []
+    try:
+        with open('./data/vega_risk.json') as f:
+            for call in json.load(f):
+                date_str = call['instId'].split('-')
+                delta = datetime.strptime(date_str[2], "%y%m%d") - datetime.now() 
+                call['expiration_days'] = delta.days
+                call['strike'] = date_str[3]
+                calls.append(call)
+        return calls
+    except:
+        raise Exception
 
 def main():
     print(linear_approximation([50,35,25], [0, 30, 90], range))
