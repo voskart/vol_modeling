@@ -38,7 +38,7 @@ class Risk(OKXAccount):
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv+(_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv*(1+_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -121,8 +121,8 @@ class Risk(OKXAccount):
                 # change in spot price
                 b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv, pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                 tmp += b
-                min_val = min(min_val, tmp)
-        return (self.positions_value-min_val)/2
+            min_val = min(min_val, tmp)
+        return abs(self.positions_value-min_val)/2
     
     '''
     Calculates the minimum charge to close options
