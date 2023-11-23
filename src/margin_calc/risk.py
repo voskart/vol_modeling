@@ -1,9 +1,10 @@
-from position import Position
-from okx_account import OKXAccount
-from model import black_scholes
-from helpers import put_call_parity, linear_approximation, get_calls
+from margin_calc.position import Position
+from margin_calc.okx_account import OKXAccount
+from margin_calc.model import black_scholes
+from margin_calc.helpers import put_call_parity, linear_approximation, get_calls
 import math
 import numpy as np
+import sys
 
 class Risk(OKXAccount):
 
@@ -38,7 +39,7 @@ class Risk(OKXAccount):
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv*(1+_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv+(_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -148,7 +149,6 @@ class Risk(OKXAccount):
 if __name__ == '__main__':
     ok = OKXAccount()
     risk = Risk()
-    print(len(risk.positions))
     print(risk.positions_value)
     print(f'MR1: Spot shock: {risk.spot_shock()}')
     print(f'MR2: Time decay: {risk.time_decay()}')

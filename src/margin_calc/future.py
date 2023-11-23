@@ -3,7 +3,6 @@ from datetime import datetime
 class Future:
 
     def __init__(self, d) -> None:
-        print(d)
         self.markPx = float(d['markPx'])
         self.instId = d['instId']
         self._set_expiry()

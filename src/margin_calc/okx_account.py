@@ -1,20 +1,23 @@
 from dotenv import load_dotenv
 from okx import Account, PublicData 
-from position import Position
-from future import Future
-from datetime import datetime
+from margin_calc.position import Position
+from margin_calc.option import Option
+from margin_calc.future import Future
+from datetime import datetime, timedelta
 import os
 import json
+import math
+import time
 
 class OKXAccount:
 
     def __init__(self) -> None:
         cur_date = datetime.now()
-        m = cur_date.month
-        d = cur_date.day
-        file_string = f'./data/positions-{m}-{d}.json'
-        market_data_string = f'./data/market-{m}-{d}.json'
-        futures_data_string = f'./data/futures-{m}-{d}.json'
+        self.m = cur_date.month
+        self.d = cur_date.day
+        file_string = f'./data/positions-{self.m}-{self.d}.json'
+        market_data_string = f'./data/market-{self.m}-{self.d}.json'
+        futures_data_string = f'./data/futures-{self.m}-{self.d}.json'
         # if there is no json file for today, call API for current positions 
         if not os.path.isfile(file_string):
             try:
@@ -32,6 +35,7 @@ class OKXAccount:
                 raise Exception
         # add logic to check if data was already imported today
         else:
+            self.set_market_data_json()
             self.set_account_data_json()
             self.set_positions_json()
             self.set_futures_data_json()
@@ -50,12 +54,9 @@ class OKXAccount:
             print(exp)
 
     def set_futures_data_json(self):
-        cur_date = datetime.now()
-        m = cur_date.month
-        d = cur_date.day
         self.futures = []
         try:
-            with open('./data/futures-{}-{}.json'.format(m, d)) as f:
+            with open('./data/futures-{}-{}.json'.format(self.m, self.d)) as f:
                 for fut in json.load(f):
                     # maybe create futures class
                     self.futures.append(Future(fut))
@@ -100,12 +101,9 @@ class OKXAccount:
 
     def set_positions_json(self):
         self.positions = []
-        cur_date = datetime.now()
-        m = cur_date.month
-        d = cur_date.day
         try:
             # simplified positions
-            with open('./data/positions-{}-{}.json'.format(m, d)) as f:
+            with open('./data/positions-{}-{}.json'.format(self.m, self.d)) as f:
                 for p in json.load(f)['data']:
                     # only looking at BTC options for simplicity
                     if p['instType'] == 'OPTION' and p['ccy'] == 'BTC':
@@ -113,9 +111,52 @@ class OKXAccount:
         except FileNotFoundError as exp:
             print(exp)
 
+    def get_options(self, type, tte, delta):
+        expiry = self._find_closest_expiry(tte)
+        match type:
+            case 'c':
+                return self._find_contract('c', expiry, delta)
+            case 'p':
+                return self._find_contract('p', expiry, delta) 
+            case _ :
+                raise ValueError('Wrong error')
+
+    def _find_closest_expiry(self, tte):
+        # expiration in tte
+        wanted_expiration = datetime.now() + timedelta(days=tte)
+        delta_expiration = math.inf
+        closest_expiration = ''
+        for inst in self.market_data_options:
+            # get expiration from instId
+            options_expiration_str = inst.instId.split('-')[2]
+            expiration_cur = datetime.strptime(options_expiration_str, '%y%m%d')
+            cur_delta = expiration_cur-wanted_expiration
+            if abs(cur_delta.days) < delta_expiration:
+                delta_expiration = abs(cur_delta.days)
+                closest_expiration = options_expiration_str
+        return closest_expiration
+
+    # TODO: Create two sets (calls, puts) and order by delta
+    def _find_contract(self, type, expiry: str, delta):
+        delta_closest = math.inf
+        closest_contract = None
+        for inst in self.market_data_options:
+            # TODO: add call/put field to Option class
+            if expiry in inst.instId and inst.instId.split('-')[4].lower() == type:
+                if abs(inst.delta-delta) < delta_closest:
+                    closest_contract = inst
+                    delta_closest = abs(inst.delta-delta)
+        return closest_contract
+
     def set_market_data_json(self):
-        raise NotImplemented
-    
+        self.market_data_options = []
+        try:
+            # simplified positions
+            with open('./data/market-{}-{}.json'.format(self.m, self.d)) as f:
+                for inst in json.load(f):
+                    self.market_data_options.append(Option(**inst))
+        except FileNotFoundError as exp:
+            print(exp)
 
     # TODO: DRY CODE
     def write_positions_to_json(self, file_string):
@@ -152,10 +193,12 @@ class OKXAccount:
     def calculate_mmr(self):
         raise NotImplemented         
     
-            
 
 def main():
     ok = OKXAccount()
+    # should return both put and call (0.25 delta) with a week expiry
+    # print(ok._find_contract('any', 1, 0.25))
+    # print(ok._find_closest_expiry(180))
 
 if __name__ == "__main__":
     main()

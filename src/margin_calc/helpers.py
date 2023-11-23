@@ -1,4 +1,4 @@
-from position import Position
+from margin_calc.position import Position
 from datetime import datetime
 import statsmodels.api as sm
 import numpy as np
