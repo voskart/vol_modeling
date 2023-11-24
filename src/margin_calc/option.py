@@ -21,4 +21,5 @@ class Option:
     vega: float = None
     vegaBS: float = None 
     volLv: float = None
+    markPx: float = None
         

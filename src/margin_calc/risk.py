@@ -6,11 +6,11 @@ import math
 import numpy as np
 import sys
 
-class Risk(OKXAccount):
+class Risk():
 
-    def __init__(self) -> None:
-        OKXAccount.__init__(self)
-        self.positions = self.positions
+    def __init__(self, okx: OKXAccount) -> None:
+        self.account = okx
+        self.positions = self.account.positions
         self.positions_value = self.calculate_portfolio_value()
         self.idxPrice = self.positions[0].idxPx
 
@@ -86,7 +86,7 @@ class Risk(OKXAccount):
         max_price_fwd_move = 0.015
         # calculate risk for each futures contract
         basis_risk = 0
-        for fut in self.futures:
+        for fut in self.account.futures:
             fwd_basis_move = (self.idxPrice - fut.markPx) * max_fwd_basis_move/100
             fwd_price_move = fut.markPx * max_price_fwd_move
             basis_risk += fwd_basis_move + fwd_price_move
@@ -146,9 +146,16 @@ class Risk(OKXAccount):
             minimum_charge += cost
         return minimum_charge
     
+    '''
+    Returns the overall MMR required
+    '''
+    def get_mmr(self):
+        return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
+
+    
 if __name__ == '__main__':
-    ok = OKXAccount()
-    risk = Risk()
+    ok = OKXAccount() 
+    risk = Risk(ok)
     print(risk.positions_value)
     print(f'MR1: Spot shock: {risk.spot_shock()}')
     print(f'MR2: Time decay: {risk.time_decay()}')

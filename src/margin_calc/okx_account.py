@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 import os
 import json
 import math
-import time
 
 class OKXAccount:
 
@@ -81,9 +80,16 @@ class OKXAccount:
     def set_market_data(self, market_data_string): 
         try:
             self.vol_dict = {}
+            self.mark_price_dict = {}
             self.market_data = self.publicData.get_opt_summary(instFamily='BTC-USD')['data']
+            self.mark_prices = self.publicData.get_mark_price(instType='OPTION', uly='BTC-USD')['data']
             for inst in self.market_data:
                 self.vol_dict[inst['instId']] = inst['markVol']
+            
+            # set mark prices for each contract
+            for inst in self.mark_prices:
+                self.mark_price_dict[inst['instId']] = inst['markPx']
+
             self.write_market_data_to_json(market_data_string)
         except:
             raise Exception    
@@ -98,7 +104,7 @@ class OKXAccount:
             self.write_futures_data_to_json(futures_data_string)
         except:
             raise Exception
-
+   
     def set_positions_json(self):
         self.positions = []
         try:
@@ -110,7 +116,8 @@ class OKXAccount:
                         self.positions.append(Position(p))
         except FileNotFoundError as exp:
             print(exp)
-
+    
+    @staticmethod
     def get_options(self, type, tte, delta):
         expiry = self._find_closest_expiry(tte)
         match type:
@@ -119,13 +126,15 @@ class OKXAccount:
             case 'p':
                 return self._find_contract('p', expiry, delta) 
             case _ :
-                raise ValueError('Wrong error')
+                raise ValueError('Wrong type')
 
     def _find_closest_expiry(self, tte):
         # expiration in tte
         wanted_expiration = datetime.now() + timedelta(days=tte)
         delta_expiration = math.inf
         closest_expiration = ''
+        if not self.market_data_options:
+            raise RuntimeError('Option data has not been collected yet, re-run')
         for inst in self.market_data_options:
             # get expiration from instId
             options_expiration_str = inst.instId.split('-')[2]
@@ -143,9 +152,9 @@ class OKXAccount:
         for inst in self.market_data_options:
             # TODO: add call/put field to Option class
             if expiry in inst.instId and inst.instId.split('-')[4].lower() == type:
-                if abs(inst.delta-delta) < delta_closest:
+                if abs(abs(inst.delta)-delta) < delta_closest:
                     closest_contract = inst
-                    delta_closest = abs(inst.delta-delta)
+                    delta_closest = abs(abs(inst.delta)-delta)
         return closest_contract
 
     def set_market_data_json(self):
@@ -171,6 +180,10 @@ class OKXAccount:
 
     def write_market_data_to_json(self, file_string):
         if self.market_data:
+            # set mark prices for each contract
+            for inst in self.market_data:
+                if inst['instId'] in self.mark_price_dict.keys():
+                    inst['markPx'] = self.mark_price_dict[inst['instId']]
             try:
                 with open(file_string, 'w') as f:
                     json.dump(self.market_data, f)
@@ -188,11 +201,6 @@ class OKXAccount:
                 print(exp)
         else:
             print('empty')
-
-
-    def calculate_mmr(self):
-        raise NotImplemented         
-    
 
 def main():
     ok = OKXAccount()
