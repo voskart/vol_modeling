@@ -8,16 +8,25 @@ import sys
 
 class Risk():
 
-    def __init__(self, okx: OKXAccount) -> None:
+    def __init__(self, okx: OKXAccount, spot_pct_shock: int = 0, iv_pc_shock: int = 0, tte_change: int = 0) -> None:
         self.account = okx
         self.positions = self.account.positions
-        self.positions_value = self.calculate_portfolio_value()
-        self.idxPrice = self.positions[0].idxPx
+        self.idxPrice = self.positions[0].idxPx if not spot_pct_shock else self.positions[0].idxPx * (1+spot_pct_shock/100)
+        self.positions_value = self.calculate_portfolio_value(spot_pct_shock, tte_change)
+        if iv_pc_shock:
+            self.portfolio_shock(iv_pc_shock)
 
-    def calculate_portfolio_value(self):
+    def calculate_portfolio_value(self, spot_pct_shock = 0, tte_change = 0):
         cur_val = 0
+        r = put_call_parity()
         for pos in self.positions:
-            cur_val += pos.optVal
+            if spot_pct_shock or tte_change:
+                # if option would expire set value to 0
+                if pos.expiration_days > tte_change:
+                    val = (black_scholes(self.idxPrice*(1+spot_pct_shock/100), pos.strike, r, pos.iv, (pos.expiration_days+tte_change)/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                    cur_val += val
+            else:
+                cur_val += pos.optVal
         return cur_val
 
     '''
@@ -151,17 +160,36 @@ class Risk():
     '''
     def get_mmr(self):
         return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
+    
+    '''
+    Simulates market shock and re-calculates option values 
+    '''
+    def market_shock(self, iv_shock: int):
+        r = put_call_parity()
+        for inst in self.account.market_data_options:
+            new_price = black_scholes(self.idxPrice, inst.strike, r, inst.markVol+iv_shock/100, inst.tte/365, inst.type)/self.idxPrice
+            inst.markPx = new_price
 
+    '''
+    Simulate effects of iv shock on portfolio
+    '''
+    def portfolio_shock(self, iv_shock: int):
+        r = put_call_parity()
+        for pos in self.positions:
+            new_price = black_scholes(self.idxPrice, pos.strike, r, pos.iv+iv_shock/100, pos.expiration_days/365, pos.type.lower())/self.idxPrice
+            pos.optVal = new_price * pos.pos/100
+        self.positions_value = self.calculate_portfolio_value()
     
 if __name__ == '__main__':
     ok = OKXAccount() 
     risk = Risk(ok)
-    print(risk.positions_value)
-    print(f'MR1: Spot shock: {risk.spot_shock()}')
-    print(f'MR2: Time decay: {risk.time_decay()}')
-    print(f'MR3: Vega risk: {risk.vega_risk()}')
-    print(f'MR4: Basis risk: {risk.basis_risk()}')
-    print(f'MR6: Extreme move: {risk.extreme_move()}')
-    print(f'MR7: Minimum charge: {risk.minimum_charge()}')
-    max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
-    print(max_risk)
+    # print(risk.positions_value)
+    # print(f'MR1: Spot shock: {risk.spot_shock()}')
+    # print(f'MR2: Time decay: {risk.time_decay()}')
+    # print(f'MR3: Vega risk: {risk.vega_risk()}')
+    # print(f'MR4: Basis risk: {risk.basis_risk()}')
+    # print(f'MR6: Extreme move: {risk.extreme_move()}')
+    # print(f'MR7: Minimum charge: {risk.minimum_charge()}')
+    # max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
+    # print(max_risk)
+    print(risk.market_shock(5))
