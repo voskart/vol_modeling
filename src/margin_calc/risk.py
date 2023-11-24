@@ -152,16 +152,26 @@ class Risk():
     def get_mmr(self):
         return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
 
-    
+    '''
+    Simulate market shock
+    '''
+    def market_shock(self, pct: float):
+        # re-calculate contract prices for all options
+        r = put_call_parity()
+        for i, inst in enumerate(self.account.market_data_options):
+            print(inst)
+
+
 if __name__ == '__main__':
     ok = OKXAccount() 
     risk = Risk(ok)
-    print(risk.positions_value)
-    print(f'MR1: Spot shock: {risk.spot_shock()}')
-    print(f'MR2: Time decay: {risk.time_decay()}')
-    print(f'MR3: Vega risk: {risk.vega_risk()}')
-    print(f'MR4: Basis risk: {risk.basis_risk()}')
-    print(f'MR6: Extreme move: {risk.extreme_move()}')
-    print(f'MR7: Minimum charge: {risk.minimum_charge()}')
-    max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
-    print(max_risk)
+    # print(risk.positions_value)
+    # print(f'MR1: Spot shock: {risk.spot_shock()}')
+    # print(f'MR2: Time decay: {risk.time_decay()}')
+    # print(f'MR3: Vega risk: {risk.vega_risk()}')
+    # print(f'MR4: Basis risk: {risk.basis_risk()}')
+    # print(f'MR6: Extreme move: {risk.extreme_move()}')
+    # print(f'MR7: Minimum charge: {risk.minimum_charge()}')
+    # max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
+    # print(max_risk)
+    risk.market_shock(30)
