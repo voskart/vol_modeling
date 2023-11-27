@@ -22,8 +22,8 @@ class Risk():
         for pos in self.positions:
             if spot_pct_shock or tte_change:
                 # if option would expire set value to 0
-                if pos.expiration_days > tte_change:
-                    val = (black_scholes(self.idxPrice*(1+spot_pct_shock/100), pos.strike, r, pos.iv, (pos.expiration_days+tte_change)/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                if pos.tte > tte_change:
+                    val = (black_scholes(self.idxPrice*(1+spot_pct_shock/100), pos.strike, r, pos.markVol, (pos.tte+tte_change)/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                     cur_val += val
             else:
                 cur_val += pos.optVal
@@ -48,7 +48,7 @@ class Risk():
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv+(_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -129,7 +129,7 @@ class Risk():
             for pos in self.positions:
                 # set mark iv for each contract
                 # change in spot price
-                b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv, pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol, pos.tte/365, pos.type.lower())/self.idxPrice)*pos.pos/100
                 tmp += b
             min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)/2
@@ -176,7 +176,7 @@ class Risk():
     def portfolio_shock(self, iv_shock: int):
         r = put_call_parity()
         for pos in self.positions:
-            new_price = black_scholes(self.idxPrice, pos.strike, r, pos.iv+iv_shock/100, pos.expiration_days/365, pos.type.lower())/self.idxPrice
+            new_price = black_scholes(self.idxPrice, pos.strike, r, pos.markVol+iv_shock/100, pos.tte/365, pos.type.lower())/self.idxPrice
             pos.optVal = new_price * pos.pos/100
         self.positions_value = self.calculate_portfolio_value()
     

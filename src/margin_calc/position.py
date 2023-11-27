@@ -9,7 +9,7 @@ class Position:
         self.notionalUsd = float(d['notionalUsd'])
         self.optVal = float(d['optVal'])
         self.pos = float(d['pos'])
-        self.iv = float(d['iv'])
+        self.markVol = float(d['markVol'])
         self.idxPx = float(d['idxPx'])
         self.delta = float(d['deltaBS'])
         self.gamma = float(d['gammaBS'])
@@ -28,7 +28,7 @@ class Position:
             # dummy date for now
             dummy = datetime.now()
             delta = exp_date-dummy
-            self.expiration_days = delta.days
+            self.tte = delta.days
         except ValueError:
             print('Bad date')
 

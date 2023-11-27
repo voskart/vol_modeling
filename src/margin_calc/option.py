@@ -27,6 +27,7 @@ class Option:
     type: Literal['c', 'p'] = None
     strike: int = None
     tte: int = None
+    pos: int = 100
 
     def __post_init__(self):
         # "BTC-USD-240628-5000-P"

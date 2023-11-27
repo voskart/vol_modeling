@@ -71,7 +71,7 @@ class OKXAccount:
             # set markvol for each contract from vol_dict
             for p in self.position_data['data']:
                 if p['instId'] in self.vol_dict.keys():
-                    p['iv'] = self.vol_dict[p['instId']]
+                    p['markVol'] = self.vol_dict[p['instId']]
                     self.positions.append(Position(p))
             self.write_positions_to_json(file_string)
         except:
