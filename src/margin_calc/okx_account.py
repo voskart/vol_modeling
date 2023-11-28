@@ -162,7 +162,6 @@ class OKXAccount:
 
     def set_market_data_json(self):
         try:
-            # simplified positions
             with open('./data/market-{}-{}.json'.format(self.m, self.d)) as f:
                 for inst in json.load(f):
                     self.market_data_options.append(Option(**inst))

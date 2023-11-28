@@ -39,7 +39,7 @@ class Risk():
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower())/(self.idxPrice*(1+s/100)))*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower()))/(self.idxPrice*(1+s/100))*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -151,6 +151,11 @@ class Risk():
     def get_mmr(self):
         return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
     
+    
+    def add_positions(self, positions: [Position] = None) -> None:
+        for pos in positions:
+            self.positions.append(pos)
+
 if __name__ == '__main__':
     ok = OKXAccount() 
     risk = Risk(ok)

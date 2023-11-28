@@ -37,4 +37,4 @@ class Option:
         date_delta = date_option-date_now
         self.strike = int(opt_string[3])
         self.type = opt_string[4].lower()
-        self.tte = date_delta.days
+        self.tte = date_delta.days + 1

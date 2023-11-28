@@ -1,4 +1,5 @@
 from margin_calc.position import Position
+from margin_calc.option import Option
 from datetime import datetime
 import statsmodels.api as sm
 import numpy as np
@@ -49,6 +50,13 @@ def get_calls(n=5) -> None:
         return calls
     except:
         raise Exception
+    
+def short_option(opt: Option):
+    opt.deltaBS *= -1
+    opt.gammaBS *= -1
+    opt.thetaBS *= -1
+    opt.vegaBS *= -1
+    opt.pos *= -1
 
 def main():
     print(linear_approximation([50,35,25], [0, 30, 90], range))

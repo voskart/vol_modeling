@@ -2,6 +2,7 @@ from margin_calc.risk import Risk
 from margin_calc.okx_account import OKXAccount
 from margin_calc.helpers import put_call_parity
 from margin_calc.model import black_scholes
+from margin_calc.position import Position
 from copy import deepcopy
 
 class Scenario():
@@ -16,6 +17,10 @@ class Scenario():
         self.idxPx = risk.positions[0].idxPx if risk.positions else 0
         self._market_shock()
         self._adjust_expiries()
+
+    # def add_positions(self, positions: [Position] = None) -> None:
+    #     for pos in positions:
+    #         self.risk.positions.append(pos)
 
     '''
     Simulates a shift in expiries while maintaining iv and spot price 
