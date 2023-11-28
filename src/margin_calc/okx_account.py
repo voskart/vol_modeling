@@ -12,6 +12,9 @@ class OKXAccount:
 
     def __init__(self) -> None:
         cur_date = datetime.now()
+        self.market_data_options = []
+        self.futures = []
+        self.positions = []
         self.m = cur_date.month
         self.d = cur_date.day
         file_string = f'./data/positions-{self.m}-{self.d}.json'
@@ -53,7 +56,6 @@ class OKXAccount:
             print(exp)
 
     def set_futures_data_json(self):
-        self.futures = []
         try:
             with open('./data/futures-{}-{}.json'.format(self.m, self.d)) as f:
                 for fut in json.load(f):
@@ -71,7 +73,7 @@ class OKXAccount:
             # set markvol for each contract from vol_dict
             for p in self.position_data['data']:
                 if p['instId'] in self.vol_dict.keys():
-                    p['iv'] = self.vol_dict[p['instId']]
+                    p['markVol'] = self.vol_dict[p['instId']]
                     self.positions.append(Position(p))
             self.write_positions_to_json(file_string)
         except:
@@ -85,7 +87,7 @@ class OKXAccount:
             self.mark_prices = self.publicData.get_mark_price(instType='OPTION', uly='BTC-USD')['data']
             for inst in self.market_data:
                 self.vol_dict[inst['instId']] = inst['markVol']
-            
+            self.market_data_options.append(Option(**inst))
             # set mark prices for each contract
             for inst in self.mark_prices:
                 self.mark_price_dict[inst['instId']] = inst['markPx']
@@ -97,7 +99,6 @@ class OKXAccount:
     def set_futures_data(self, futures_data_string):
         try:
             # TODO: think of better way
-            self.futures = []
             self.futures_data = self.publicData.get_mark_price(instType='FUTURES', uly='BTC-USD')
             for fut in self.futures_data['data']:
                 self.futures.append(Future(fut))
@@ -106,7 +107,6 @@ class OKXAccount:
             raise Exception
    
     def set_positions_json(self):
-        self.positions = []
         try:
             # simplified positions
             with open('./data/positions-{}-{}.json'.format(self.m, self.d)) as f:
@@ -133,8 +133,6 @@ class OKXAccount:
         wanted_expiration = datetime.now() + timedelta(days=tte)
         delta_expiration = math.inf
         closest_expiration = ''
-        if not self.market_data_options:
-            raise RuntimeError('Option data has not been collected yet, re-run')
         for inst in self.market_data_options:
             # get expiration from instId
             options_expiration_str = inst.instId.split('-')[2]
@@ -157,8 +155,12 @@ class OKXAccount:
                     delta_closest = abs(abs(inst.delta)-delta)
         return closest_contract
 
+    def find_contract_by_strike_exp(self, type, expiry: str, strike: int):
+        for inst in self.market_data_options:
+                if expiry in inst.instId and inst.instId.split('-')[4].lower() == type and inst.strike == strike:
+                    return inst
+
     def set_market_data_json(self):
-        self.market_data_options = []
         try:
             # simplified positions
             with open('./data/market-{}-{}.json'.format(self.m, self.d)) as f:
@@ -184,6 +186,7 @@ class OKXAccount:
             for inst in self.market_data:
                 if inst['instId'] in self.mark_price_dict.keys():
                     inst['markPx'] = self.mark_price_dict[inst['instId']]
+                self.market_data_options.append(Option(**inst))
             try:
                 with open(file_string, 'w') as f:
                     json.dump(self.market_data, f)

@@ -4,18 +4,18 @@ from margin_calc.model import black_scholes
 from margin_calc.helpers import put_call_parity, linear_approximation, get_calls
 import math
 import numpy as np
-import sys
 
 class Risk():
 
     def __init__(self, okx: OKXAccount) -> None:
         self.account = okx
         self.positions = self.account.positions
-        self.positions_value = self.calculate_portfolio_value()
         self.idxPrice = self.positions[0].idxPx
+        self.positions_value = self.calculate_portfolio_value()
 
     def calculate_portfolio_value(self):
         cur_val = 0
+        r = put_call_parity()
         for pos in self.positions:
             cur_val += pos.optVal
         return cur_val
@@ -39,7 +39,7 @@ class Risk():
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv+(_vol_change/100), pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower())/(self.idxPrice*(1+s/100)))*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -90,7 +90,7 @@ class Risk():
             fwd_basis_move = (self.idxPrice - fut.markPx) * max_fwd_basis_move/100
             fwd_price_move = fut.markPx * max_price_fwd_move
             basis_risk += fwd_basis_move + fwd_price_move
-        return basis_risk/self.idxPrice
+        return (basis_risk/len(self.account.futures))/self.idxPrice
 
     
     '''
@@ -114,16 +114,15 @@ class Risk():
     def extreme_move(self) -> float:
         spot_move_pct = [-30, 30]
         r = put_call_parity()
-        min_val = math.inf
+        max_loss = 0
         for s in spot_move_pct:
             tmp = 0
             for pos in self.positions:
-                # set mark iv for each contract
                 # change in spot price
-                b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.iv, pos.expiration_days/365, pos.type.lower())/self.idxPrice)*pos.pos/100
+                b = black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol, pos.tte/365, pos.type.lower())*pos.pos/100/(self.idxPrice*(1+s/100))
                 tmp += b
-            min_val = min(min_val, tmp)
-        return abs(self.positions_value-min_val)/2
+            max_loss = max(max_loss, abs(self.positions_value-tmp))
+        return max_loss/2
     
     '''
     Calculates the minimum charge to close options
@@ -151,27 +150,17 @@ class Risk():
     '''
     def get_mmr(self):
         return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
-
-    '''
-    Simulate market shock
-    '''
-    def market_shock(self, pct: float):
-        # re-calculate contract prices for all options
-        r = put_call_parity()
-        for i, inst in enumerate(self.account.market_data_options):
-            print(inst)
-
-
+    
 if __name__ == '__main__':
     ok = OKXAccount() 
     risk = Risk(ok)
-    # print(risk.positions_value)
-    # print(f'MR1: Spot shock: {risk.spot_shock()}')
-    # print(f'MR2: Time decay: {risk.time_decay()}')
-    # print(f'MR3: Vega risk: {risk.vega_risk()}')
-    # print(f'MR4: Basis risk: {risk.basis_risk()}')
-    # print(f'MR6: Extreme move: {risk.extreme_move()}')
-    # print(f'MR7: Minimum charge: {risk.minimum_charge()}')
-    # max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
-    # print(max_risk)
-    risk.market_shock(30)
+    print(risk.positions_value)
+    print(len(risk.positions))
+    print(f'MR1: Spot shock: {risk.spot_shock()}')
+    print(f'MR2: Time decay: {risk.time_decay()}')
+    print(f'MR3: Vega risk: {risk.vega_risk()}')
+    print(f'MR4: Basis risk: {risk.basis_risk()}')
+    print(f'MR6: Extreme move: {risk.extreme_move()}')
+    print(f'MR7: Minimum charge: {risk.minimum_charge()}')
+    max_risk = max(max(risk.spot_shock(), risk.time_decay(), risk.extreme_move())+risk.basis_risk()+risk.vega_risk()+risk.interest_rate_risk(), risk.minimum_charge())
+    print(max_risk)
