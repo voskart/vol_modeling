@@ -1,33 +1,34 @@
 from pydantic.dataclasses import dataclass
 from account.okx.instrument import Instrument
-from typing import Literal
+from typing import Literal, Optional
 from datetime import datetime, timedelta
 
 @dataclass
 class Option(Instrument):
-    askVol: float = None
-    bidVol: float = None
-    delta: float = None
+    askVol: Optional[float] = None
+    bidVol: Optional[float] = None
+    delta: Optional[float] = None
     deltaBS: float = None
-    fwdPx: float = None
-    gamma: float = None
+    fwdPx: Optional[float] = None
+    gamma: Optional[float] = None
     gammaBS: float = None
     instId: str = None
     instType: str = None
     markVol: float = None
-    realVol: float = None
-    theta: float = None
+    realVol: Optional[float] = None
+    theta: Optional[float] = None
     thetaBS: float = None
-    ts: int = None
-    uly: str = None 
-    vega: float = None
+    ts: Optional[float] = None
+    uly: Optional[str] = None 
+    vega: Optional[float] = None
     vegaBS: float = None 
-    volLv: float = None
+    volLv: Optional[float] = None
     markPx: float = None
     type: Literal['c', 'p'] = None
     strike: int = None
-    tte: int = None
     pos: int = 100
+    markVol: float = 0.0
+    idxPx: Optional[float] = None
 
     def __post_init__(self):
         super().__post_init__() 

@@ -1,7 +1,5 @@
 import numpy as np
-import math
 from scipy.stats import norm
-import inspect
 
 '''
 :param S: spot price

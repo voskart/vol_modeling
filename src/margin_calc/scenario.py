@@ -1,8 +1,7 @@
-from margin_calc.risk import Risk
-from margin_calc.okx_account import OKXAccount
-from margin_calc.helpers import put_call_parity
+from account.okx.okx_account import OKXAccount
+from account.util import put_call_parity
 from margin_calc.model import black_scholes
-from margin_calc.position import Position
+from margin_calc.risk import Risk
 from copy import deepcopy
 
 class Scenario():
@@ -13,7 +12,7 @@ class Scenario():
         # a shift of 20 would mean 20 days would be subtracted from the expiration dates
         self.tte_shift = tte_shift
         self.risk = deepcopy(risk)
-        self.r = put_call_parity()
+        self.r = put_call_parity(risk.account)
         self.idxPx = risk.positions[0].idxPx if risk.positions else 0
         self._market_shock()
         self._adjust_expiries()

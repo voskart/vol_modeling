@@ -1,9 +1,9 @@
-from margin_calc.okx_account import OKXAccount
 from margin_calc.risk import Risk
-from margin_calc.option import Option
-from margin_calc.helpers import put_call_parity, short_option
 from margin_calc.scenario import Scenario
 from margin_calc.model import black_scholes
+from account.okx.okx_account import OKXAccount
+from account.util import put_call_parity
+
 import numpy as np
 import math
 
@@ -49,7 +49,7 @@ def main():
     okx = OKXAccount()
     risk = Risk(okx)
     strat = Strategy()
-    r = put_call_parity(spot=risk.idxPrice)
+    r = put_call_parity(acc=risk.account, spot=risk.idxPrice)
     # iv shock, spot shock, tte shift
     # print(strat.diagonal_spread(okx))
     # print(f'Initial MMR: {risk.get_mmr()}') 

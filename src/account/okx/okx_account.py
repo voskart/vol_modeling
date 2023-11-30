@@ -4,10 +4,10 @@ from okx import Account, PublicData
 from account.account import BaseAccount
 from account.okx.future import Future
 from account.okx.option import Option
-from datetime import datetime, timedelta
+from datetime import datetime
+from pydantic import RootModel
 import os
 import json
-import math
 
 class OKXAccount(BaseAccount):
 
@@ -37,8 +37,6 @@ class OKXAccount(BaseAccount):
                 self.get_market()
                 self.get_futures()
                 self.get_postions()
-                # write data to json files
-                # self.write_data_to_json()
             except:
                 raise Exception
         else:
@@ -48,32 +46,37 @@ class OKXAccount(BaseAccount):
         try:
             self.vol_dict = {}
             self.mark_price_dict = {}
-            self.market_data = self.publicData.get_opt_summary(instFamily='BTC-USD')['data']
+            _market_data = self.publicData.get_opt_summary(instFamily='BTC-USD')['data']
             self.mark_prices = self.publicData.get_mark_price(instType='OPTION', uly='BTC-USD')['data']
             # set mark prices for each contract
             for inst in self.mark_prices:
                 self.mark_price_dict[inst['instId']] = inst['markPx']
 
-            for inst in self.market_data:
+            for inst in _market_data:
                 self.vol_dict[inst['instId']] = inst['markVol']
                 inst['markPx'] = self.mark_price_dict[inst['instId']]
                 self.market_data_options.append(Option(**inst))
+
+            self.write_data_to_json(self.market_data_options, self.market_data_string)
+            
 
         except:
             raise Exception    
    
     def get_futures(self):
-        _futures_data = self.publicData.get_mark_price(instType='FUTURES', uly='BTC-USD')
-        for fut in _futures_data['data']:
+        _futures_data = self.publicData.get_mark_price(instType='FUTURES', uly='BTC-USD')['data']
+        for fut in _futures_data:
             self.futures.append(Future(**fut))
+        self.write_data_to_json(self.futures, self.futures_data_string)
      
     def get_postions(self):
         try:
-            _positions = self.account.get_positions()
-            for p in _positions['data']:
+            _positions = self.account.get_positions()['data']
+            for p in _positions:
                 if p['instId'] in self.vol_dict.keys():
                     p['markVol'] = self.vol_dict[p['instId']]
                     self.positions.append(Option(**p))
+            self.write_data_to_json(self.positions, self.positions_data_string)
         except:
             raise Exception
     
@@ -82,34 +85,33 @@ class OKXAccount(BaseAccount):
         try:
             # simplified positions
             with open(self.positions_data_string) as position_file, open(self.futures_data_string) as futures_file, open(self.market_data_string) as market_file:
-                for p in json.load(position_file)['data']:
+                for p in json.load(position_file):
                     # only looking at BTC options for simplicity
                     if p['instType'] == 'OPTION' and p['ccy'] == 'BTC':
-                        self.positions.append(Option(p))
+                        self.positions.append(Option(**p))
                 
-                for f in json.load(futures_file)['data']:
+                for f in json.load(futures_file):
                     self.futures.append(Future(**f))
 
-                for o in json.load(market_file)['data']:
+                for o in json.load(market_file):
                     self.market_data_options.append(Option(**o))    
             
         except FileNotFoundError as exp:
             print(exp)
     
-    def write_data_to_json(self):
+    def write_data_to_json(self, objects: [object] = None, file_string: str = ''):
         try:
-            with open(self.positions_data_string, 'w') as position_file, open(self.futures_data_string, 'w') as futures_file, open(self.market_data_string, 'w') as market_file:
-                json.dump(self.positions, position_file)
-                json.dump(self.market_data, market_file)
-                json.dump(self.futures, futures_file)
+            _json_string = [RootModel[type(objects[0])](x).model_dump() for x in objects]
+            with open(file_string, 'w') as file:                
+                json.dump(_json_string, file)
         except FileNotFoundError as exp:
             print(exp)
 def main():
     ok = OKXAccount()
     # TODO: serialize lists of objects
-    print(len(ok.positions))
-    print(len(ok.futures))
-    print(len(ok.market_data_options))
+    # print(RootModel[Option](ok.positions).model_dump_json())
+    # print(ok.futures)
+    # print(ok.market_data_options)
 
 if __name__ == '__main__':
     main()

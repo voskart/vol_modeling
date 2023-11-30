@@ -1,7 +1,7 @@
-from margin_calc.position import Position
-from margin_calc.okx_account import OKXAccount
+from account.okx.okx_account import OKXAccount
+from account.okx.option import Option
 from margin_calc.model import black_scholes
-from margin_calc.helpers import put_call_parity, linear_approximation, get_calls
+from account.util import put_call_parity, linear_approximation, get_calls
 import math
 import numpy as np
 
@@ -10,17 +10,14 @@ class Risk():
     def __init__(self, okx: OKXAccount = None) -> None:
         self.account = okx
         self.positions = self.account.positions
-        self.idxPrice = self.positions[0].idxPx
-        self.risk_free_rate = put_call_parity(spot=self.idxPrice)
+        self.idxPrice = okx.positions[0].idxPx
+        self.risk_free_rate = put_call_parity(acc=self.account, spot=self.idxPrice)
         self.positions_value = self.calculate_portfolio_value()
 
     def calculate_portfolio_value(self):
         cur_val = 0
         for pos in self.positions:
-            if 'optVal' in vars(pos).keys():
-                cur_val += pos.optVal
-            else:
-                cur_val += pos.pos * pos.markPx
+            cur_val += pos.markPx * pos.pos/100
             # print(f'Position: {pos.instId}, size: {pos.pos}, notional: {pos.notionalUsd}, delta: {pos.delta}')
         # print(f'total notional: {notional}')
         return cur_val
@@ -54,7 +51,7 @@ class Risk():
     def time_decay(self) -> float:
         theta_decay = 0
         for pos in self.positions:
-            theta_decay += pos.theta
+            theta_decay += pos.thetaBS
         return theta_decay/self.idxPrice
     
     # tbd what "It measures the risk of change in implied volatility across different expiry dates that is not captured in MR1." means exactly
@@ -119,7 +116,7 @@ class Risk():
             tmp = 0
             for pos in self.positions:
                 # change in spot price
-                b = black_scholes(self.idxPrice*(1+s/100), pos.strike, self.risk_free_rate, pos.markVol, pos.tte/365, pos.type.lower())*pos.pos/100/(self.idxPrice*(1+s/100))
+                b = black_scholes(self.idxPrice*(1+s/100), pos.strike, self.risk_free_rate, pos.markVol, pos.tte/365, pos.type.lower())/(self.idxPrice*(1+s/100)) * pos.pos/100
                 tmp += b
             max_loss = max(max_loss, abs(self.positions_value-tmp))
         return max_loss/2
@@ -138,10 +135,10 @@ class Risk():
             cost = 0
             # short
             if pos.pos < 0:
-                slippage = max(min_per_delta, min_per_delta*pos.delta)*abs(pos.pos)
+                slippage = max(min_per_delta, min_per_delta*pos.deltaBS)*abs(pos.pos)
                 cost = min(taker_fee * pos.markPx/100 * slippage * abs(pos.pos), 0.125 * pos.markPx * slippage * pos.markPx/100 * abs(pos.pos))
             else:
-                slippage = min(max(min_per_delta, min_per_delta*pos.delta), pos.markPx)*abs(pos.pos)
+                slippage = min(max(min_per_delta, min_per_delta*pos.deltaBS), pos.markPx)*abs(pos.pos)
                 cost = min(taker_fee * pos.markPx/100 * slippage * abs(pos.pos), 0.125 * pos.markPx * slippage * pos.markPx/100 * abs(pos.pos))
             minimum_charge += cost
         return minimum_charge
@@ -153,7 +150,7 @@ class Risk():
         return(max(max(self.spot_shock(), self.time_decay(), self.extreme_move())+self.basis_risk()+self.vega_risk()+self.interest_rate_risk(), self.minimum_charge()))
     
     
-    def add_positions(self, positions: [Position] = None) -> None:
+    def add_positions(self, positions: [Option] = None) -> None:
         for pos in positions:
             self.positions.append(pos)
 
