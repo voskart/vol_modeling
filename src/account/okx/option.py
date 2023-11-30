@@ -1,6 +1,7 @@
 from pydantic.dataclasses import dataclass
 from account.okx.instrument import Instrument
 from typing import Literal
+from datetime import datetime, timedelta
 
 @dataclass
 class Option(Instrument):
@@ -13,7 +14,6 @@ class Option(Instrument):
     gammaBS: float = None
     instId: str = None
     instType: str = None
-    lever: float = None
     markVol: float = None
     realVol: float = None
     theta: float = None
@@ -26,9 +26,11 @@ class Option(Instrument):
     markPx: float = None
     type: Literal['c', 'p'] = None
     strike: int = None
+    tte: int = None
+    pos: int = 100
 
     def __post_init__(self):
-        # "BTC-USD-240628-5000-P"
+        super().__post_init__() 
         opt_string = self.instId.split('-')
         self.strike = int(opt_string[3])
         self.type = opt_string[4].lower()

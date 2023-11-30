@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Position:
 
@@ -25,10 +25,12 @@ class Position:
         self.strike = int(d[3])
         try:
             exp_date = datetime.strptime(d[2], "%y%m%d")
+            # add expiration of 08:00
+            exp_date = exp_date + timedelta(hours=8)
             # dummy date for now
-            dummy = datetime.now()
+            dummy = datetime.utcnow()
             delta = exp_date-dummy
-            self.tte = delta.days
+            self.tte = delta.total_seconds() /60/60/24
         except ValueError:
             print('Bad date')
 

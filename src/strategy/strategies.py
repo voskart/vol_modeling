@@ -3,6 +3,9 @@ from margin_calc.risk import Risk
 from margin_calc.option import Option
 from margin_calc.helpers import put_call_parity, short_option
 from margin_calc.scenario import Scenario
+from margin_calc.model import black_scholes
+import numpy as np
+import math
 
 class Strategy:
     def __init__(self) -> None:
@@ -46,15 +49,27 @@ def main():
     okx = OKXAccount()
     risk = Risk(okx)
     strat = Strategy()
+    r = put_call_parity(spot=risk.idxPrice)
     # iv shock, spot shock, tte shift
-    print(strat.diagonal_spread(okx))
-    print(f'Initial MMR: {risk.get_mmr()}')
-    # add diagonal spread contracts
-    risk.add_positions(strat.diagonal_spread(okx))
-    print(f'MMR after diagonal spread contracts: {risk.get_mmr()}')
-    scenario = Scenario(10, 10, 0, risk)    
-    # we need to add the respective contracts to the portfolio
-    print(f'MMR under 10% iv and spot shock: {scenario.get_mmr()}')
-
+    # print(strat.diagonal_spread(okx))
+    # print(f'Initial MMR: {risk.get_mmr()}') 
+    # # add diagonal spread contracts
+    # risk.positions = []
+    # risk.add_positions(strat.diagonal_spread(okx))
+    # risk.calculate_portfolio_value()
+    # print(risk.positions_value)
+    # print(f'MMR after diagonal spread contracts: {risk.get_mmr()}')
+    # scenario = Scenario(10, 10, 0, risk)    
+    # # we need to add the respective contracts to the portfolio
+    # print(f'MMR under 10% iv and spot shock: {scenario.get_mmr()}')
+    futures = okx.futures
+    avg = 0
+    for pos in risk.positions:
+        new_price = black_scholes(pos.idxPx, pos.strike, 0.12, pos.markVol, pos.tte/365, pos.type.lower())/pos.idxPx
+        print(f'contract: {pos.instId}, mark vol: {pos.markVol}, idx px: {pos.idxPx}, okx mark price: {pos.markPx}, bs model price: {new_price}, diff: {(pos.markPx-new_price)/pos.markPx*100:,.2f} %'.format())
+        avg += (pos.markPx-new_price)/pos.markPx
+    avg = avg/len(risk.positions)
+    print(f'avg error with rfr of {0.12}: {avg:.2f}')
+    
 if __name__ == '__main__':
     main()    

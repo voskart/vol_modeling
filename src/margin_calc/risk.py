@@ -7,17 +7,22 @@ import numpy as np
 
 class Risk():
 
-    def __init__(self, okx: OKXAccount) -> None:
+    def __init__(self, okx: OKXAccount = None) -> None:
         self.account = okx
         self.positions = self.account.positions
         self.idxPrice = self.positions[0].idxPx
+        self.risk_free_rate = put_call_parity(spot=self.idxPrice)
         self.positions_value = self.calculate_portfolio_value()
 
     def calculate_portfolio_value(self):
         cur_val = 0
-        r = put_call_parity()
         for pos in self.positions:
-            cur_val += pos.optVal
+            if 'optVal' in vars(pos).keys():
+                cur_val += pos.optVal
+            else:
+                cur_val += pos.pos * pos.markPx
+            # print(f'Position: {pos.instId}, size: {pos.pos}, notional: {pos.notionalUsd}, delta: {pos.delta}')
+        # print(f'total notional: {notional}')
         return cur_val
 
     '''
@@ -29,7 +34,6 @@ class Risk():
         # iv_change_pct = [50, 35, 25]
         iv_change_points = [30, 25, 20]
         min_val = math.inf
-        r = put_call_parity()
         # for all combinations, calculate new option prices and corresponding portfolio value
         for s in spot_move_pct:
             for _vol_change in iv_change_points:
@@ -39,7 +43,7 @@ class Risk():
                 tmp = 0
                 for pos in self.positions:
                     # change in spot price as well as change in IV
-                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower()))/(self.idxPrice*(1+s/100))*pos.pos/100
+                    b = (black_scholes(self.idxPrice*(1+s/100), pos.strike, self.risk_free_rate, pos.markVol+(_vol_change/100), pos.tte/365, pos.type.lower()))/(self.idxPrice*(1+s/100))*pos.pos/100
                     tmp += b
                 min_val = min(min_val, tmp)
         return abs(self.positions_value-min_val)
@@ -62,19 +66,17 @@ class Risk():
         expiry_dates = [15, 45, 75]
         # linear approximation for above expiries
         iv_values = linear_approximation(initial_iv_change_pct, tte, expiry_dates)
-        r = put_call_parity()
         vega_risk = []
         # need to get several contracts with their mark_vol and simulate iv shock
         btc_instruments = get_calls()
         for inst in btc_instruments:
-            init_px = black_scholes(self.idxPrice, float(inst['strike']), r, float(inst['markVol']), inst['expiration_days']/365, 'c')
+            init_px = black_scholes(self.idxPrice, float(inst['strike']), self.risk_free_rate, float(inst['markVol']), inst['expiration_days']/365, 'c')
             tmp = 0
             for iv in iv_values:
-                b = black_scholes(self.idxPrice, float(inst['strike']), r, float(inst['markVol'])*(1+iv/100), inst['expiration_days']/365, 'c')
+                b = black_scholes(self.idxPrice, float(inst['strike']), self.risk_free_rate, float(inst['markVol'])*(1+iv/100), inst['expiration_days']/365, 'c')
                 tmp += abs(init_px - b)
             vega_risk.append(tmp/self.idxPrice)
         return sum(vega_risk)/len(vega_risk)
-
 
     '''
     Calculates the risk that arises from differences in contract prices for the same underlying with different expiries
@@ -92,7 +94,6 @@ class Risk():
             basis_risk += fwd_basis_move + fwd_price_move
         return (basis_risk/len(self.account.futures))/self.idxPrice
 
-    
     '''
     Calculates the risk in the case of changes in interest rates by populating a PCA rate movement table
     TODO: model full-on yield curve 
@@ -113,13 +114,12 @@ class Risk():
     '''
     def extreme_move(self) -> float:
         spot_move_pct = [-30, 30]
-        r = put_call_parity()
         max_loss = 0
         for s in spot_move_pct:
             tmp = 0
             for pos in self.positions:
                 # change in spot price
-                b = black_scholes(self.idxPrice*(1+s/100), pos.strike, r, pos.markVol, pos.tte/365, pos.type.lower())*pos.pos/100/(self.idxPrice*(1+s/100))
+                b = black_scholes(self.idxPrice*(1+s/100), pos.strike, self.risk_free_rate, pos.markVol, pos.tte/365, pos.type.lower())*pos.pos/100/(self.idxPrice*(1+s/100))
                 tmp += b
             max_loss = max(max_loss, abs(self.positions_value-tmp))
         return max_loss/2
@@ -136,6 +136,7 @@ class Risk():
         minimum_charge = 0
         for pos in self.positions:
             cost = 0
+            # short
             if pos.pos < 0:
                 slippage = max(min_per_delta, min_per_delta*pos.delta)*abs(pos.pos)
                 cost = min(taker_fee * pos.markPx/100 * slippage * abs(pos.pos), 0.125 * pos.markPx * slippage * pos.markPx/100 * abs(pos.pos))
@@ -159,6 +160,7 @@ class Risk():
 if __name__ == '__main__':
     ok = OKXAccount() 
     risk = Risk(ok)
+    # risk.risk_free_rate = 0.12
     print(risk.positions_value)
     print(len(risk.positions))
     print(f'MR1: Spot shock: {risk.spot_shock()}')

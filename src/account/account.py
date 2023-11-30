@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-class Account(ABC):
+class BaseAccount(ABC):
     
     def __init__(self) -> None:
         pass
@@ -13,6 +13,10 @@ class Account(ABC):
     def get_futures(self):
         yield
     
+    @abstractmethod
+    def get_market(self):
+        yield
+
     @abstractmethod
     def write_data_to_json(self):
         yield

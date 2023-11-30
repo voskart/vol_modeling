@@ -13,8 +13,7 @@ import inspect
 
 '''
 def black_scholes(S, K, r, sigma, T, type):
-    # print(sigma*np.sqrt(T), T, np.sqrt(T), S, K, type)
-    d1 = (np.log(S/K)+(r+sigma**2/2.)*math.ceil(T))/(sigma*np.sqrt(math.ceil(T)))
+    d1 = (np.log(S/K)+(r+sigma**2/2.)*T)/(sigma*np.sqrt(T))
     d2 = d1 - sigma*(np.sqrt(T))
     if type == 'c':
         return S*norm.cdf(d1) - norm.cdf(d2)*K*np.exp(-r*T)

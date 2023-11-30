@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from okx import Account, PublicData 
+from okx import Account, PublicData
 from margin_calc.position import Position
 from margin_calc.option import Option
 from margin_calc.future import Future
@@ -154,7 +154,7 @@ class OKXAccount:
                     closest_contract = inst
                     delta_closest = abs(abs(inst.delta)-delta)
         return closest_contract
-
+    
     def find_contract_by_strike_exp(self, type, expiry: str, strike: int):
         for inst in self.market_data_options:
                 if expiry in inst.instId and inst.instId.split('-')[4].lower() == type and inst.strike == strike:
